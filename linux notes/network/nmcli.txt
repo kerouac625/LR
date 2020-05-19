@@ -1,0 +1,52 @@
+  配置聚合连接（网卡绑定）team，聚合链接（也称为链路聚合）
+  
+  有多块网卡（team-slave）一起组建而成的虚拟网卡，即“组队”
+  mode1:轮询式（roundrobin）的流量负载均衡
+  mode2:热备份（activebackup）连接冗余team	
+  
+  eg:热备份配置：{"runner":{"name":"activebackup"} }
+  一、添加team組
+      nmcli connection  add  type  team  con-name  team0 ifname  team0  config  '{"runner":{"name":"activebackup"} }'
+	  cat /etc/sysconfig/network-scripts/ifcfg-team0 
+	  ifconfig team0 
+	  
+  二、添加组成员
+      nmcli  connection  add  type  team-slave  ifname  eth1  master   team0
+	  nmcli  connection  add  type  team-slave  ifname  eth2  master   team0
+	  
+  三、配置team0 IP地址
+      nmcli  connection  modify  team0   ipv4.method   manual  ipv4.addresses   10.67.51.144/23  connection.autoconnect  yes
+	  
+	  配置网关
+	  nmcli connection modify team0 ipv4.gateway 10.67.50.1 
+	  
+	  nmcli c modify  ens160 ipv4.dns 10.67.50.111
+	  nmcli c up ens160
+	 
+  四、激活team0 
+      nmcli connection  up  team-slave-eth1  激活从设备eth1
+	  nmcli connection  up  team-slave-eth2  激活从设备eth2
+	  nmcli connection  up  team0            激活主设备team0
+	  
+  五、验证
+      teamdctl   team0  state       专用于查看team信息
+	  nmcli dev show team0   查看team0(包括网关 IP DNS...)
+	  
+  六、解绑
+       nmcli connection  delete  team-slave-eth1  删除eth1
+       nmcli connection  delete  team-slave-eth2  删除eth2
+	   nmcli connection  delete  team0            删除team0
+	   
+  七、重新配置ip 
+       ip 配给eth0，重启网络
+	   ip a add 10.67.51.144/23 dev eth1  临时配置网络，若想要永久生效需写入ifcfg-eth1文件
+
+	   
+	   
+     route -n 检查网关
+	 route add default gw 10.67.50.1  临时添加网关
+	 写入/etc/sysconfig/network          永久生效
+	 
+	 
+	 
+  
