@@ -1,0 +1,69 @@
+###Http Header###
+
+##Request Headers##
+
+#Accept代表浏览器可以接受的服务器返回的资源类型#
+Accept: text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8
+
+#Accept-Encoding代表浏览器支持的压缩格式列表#
+Accept-Encoding: gzip, deflate
+
+#Accept-Language 浏览器可接收的语言#
+Accept-Language: zh-TW,zh;q=0.9,en-US;q=0.8,en;q=0.7
+
+Connection: keep-alive ##keep-alive 当一个网页打开完成后，客户端和服务器之间用于传输HTTP数据的TCP连接不会关闭
+Connection: close 代表一个Request完成后，客户端和服务器之间用于传输HTTP数据的TCP连接会关闭， 当客户端再次发送Request，需要重新建立TCP连接 
+
+#请求报头域#
+Host: flownet.example.com
+
+Accept-Ranges: bytes ##支持范围请求
+Accept-Ranges: none  ##（或者不发送Accept-Range字段）不支持范围请求
+
+#bytes x-y/length 表示片段的实际偏移量和资源的总大小#
+Accept-Ranges: bytes x-y/length 
+
+#当浏览器向web服务器发送请求的时候，告诉服务器我是从哪个页面链接过来的#
+referer: https://www.linuxsysadmins.com/
+
+#User-Agent  告诉服务器客户端使用的操作系统和浏览器的名称和版本#
+User-Agent: Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/83.0.4103.61 Safari/537.36
+
+#Cookie#
+
+
+
+
+##Response Headers##
+
+#Content-Type 服务器发送的资源文件的类型和字符编码#
+Content-Type: text/html;charset=UTF-8
+
+#Content-Encoding 服务器发送资源的压缩算法#
+Content-Encoding: gzip
+
+#服务器发送资源给客户端时服务器的时间#
+Date: Tue, 09 Jun 2020 02:19:13 GMT
+
+#告诉客户端服务器和相对应的版本#
+Server: nginx/1.16.1
+Server: BWS/1.1
+
+#分块传输，服务器将要传输的文件分解成多个小块分批发送给浏览器，浏览器收到后再组装复原#
+Transfer-Encoding: chunked
+
+#location只有配合301/302状态码才有意义,它标记了服务器要求重定向的URI#
+Location: https://hr.example.com
+
+#缓存过期时间，是绝对时间deadline#
+Expires: Sun, 06 Sep 2020 05:58:50 GMT  ##告诉客户端在这个时间前，可以直接访问缓存副本
+#缓存过期时间，是相对时间#
+Cache-Control:max-age=10 
+
+#Last-Modified 显示所请求的对象的最后修改日期#
+Last-Modified: Tue, 02 Jun 2020 05:24:01 GMT
+#ETag 资源对象的标记值#
+ETag: W/"14067-1591075442251:dtagent10189200420175514fINI"  ##比如一个html文件，如果被修改了，其Etag也会别修改，所以ETag的作用跟Last-Modified的作用差不多，主要供WEB服务器判断一个对象是否改变了
+
+##JWT(Json Web Token) & Session Cookies## 
+##参考文档 https://www.jianshu.com/p/576dbf44b2ae

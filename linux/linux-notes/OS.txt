@@ -1,0 +1,74 @@
+##利用sysbench进行IO的性能测试##
+
+#安装sysbench#
+yum install sysbench -y
+
+ #选择测试的磁盘（文件系统/所在的磁盘）#
+[root@db02 ~]# lsblk
+NAME                        MAJ:MIN RM   SIZE RO TYPE MOUNTPOINT
+vda                         252:0    0   100G  0 disk
+├─vda1                      252:1    0   500M  0 part /boot
+└─vda2                      252:2    0  29.5G  0 part
+  ├─VolGroup-lv_root (dm-0) 253:0    0 926.5G  0 lvm  /
+  └─VolGroup-lv_swap (dm-1) 253:1    0     3G  0 lvm  [SWAP]
+vdb                         252:16   0   900G  0 disk
+└─VolGroup-lv_root (dm-0)   253:0    0 926.5G  0 lvm  /
+
+#在要进行IO测试的磁盘下新建目录用于生成测试文件#
+[root@db02 ~]# mkdir sysbench_test
+[root@db02 ~]# ll -d /root/sysbench_test
+drwxr-xr-x 2 root root 4096 Jun  3 11:15 /root/sysbench_test
+
+#生成测试文件#
+[root@db02 sysbench_test]# sysbench --test=fileio --file-num=4 --file-total-size=4G --file-block-size=8k --file-test-mode=rndrd --max-requests=0 --time=600 --threads=8 prepare
+[root@db02 sysbench_test]# ll
+total 4194320
+-rw------- 1 root root 1073741824 Jun  3 11:56 test_file.0
+-rw------- 1 root root 1073741824 Jun  3 11:56 test_file.1
+-rw------- 1 root root 1073741824 Jun  3 11:56 test_file.2
+-rw------- 1 root root 1073741824 Jun  3 11:56 test_file.3
+
+#测试随机读IO#
+[root@db02 sysbench_test]# sysbench --test=fileio --file-num=4 --file-total-size=4G --file-block-size=8k --file-test-mode=rndrd --max-requests=0 --time=600 --threads=8 --report-interval=3 run
+#测试随机写IO#
+[root@db02 sysbench_test]# sysbench --test=fileio --file-num=4 --file-total-size=4G --file-block-size=8k --file-test-mode=rndwr --max-requests=0 --time=600 --threads=8 --report-interval=3 run
+#测试随机读写IO#
+[root@db02 sysbench_test]# sysbench --test=fileio --file-num=4 --file-total-size=4G --file-block-size=8k --file-test-mode=rndrw --max-requests=0 --time=600 --threads=8 --report-interval=3 run
+#清除测试文件#
+[root@db02 sysbench_test]# sysbench --test=fileio --file-num=4 --file-total-size=4G --file-block-size=8k --file-test-mode=rndrd --max-requests=0 --time=600 --threads=8 cleanup
+或者 rm -rf /root/sysbench_test/*
+ 
+ #参数解析#
+ --test=fileio ##测试服务器的io性能，还可以测试内存，cpu等
+ --file-num=4 ##生成4个测试文件
+ --file-block-size=8k ##文件块大小，这个值最好与mysql数据库的innodb_page_size大小一致
+ --file-total-size=4G ##4个文件总大小
+ --file-test-mod=rndrd ##测试随机io读性能，随机io写为rndwr,一般只用测试随机读写io，顺序io性能不测试
+                 rndwr(随机写)  rndrw(随机读写)
+ --max-requests=0##最多请求次数，0表示不限制
+ --time=1200 ##最大持续时间
+ --threads=4 ##处理线程数，建议与cpu个数保持一致；lscpu 查看CPU信息
+ --file-extra-flags=direct ##测试文件写入磁盘，跳过缓存，对应mysql中的参数innodb_flush_method=O_DIRECT；会跳过先写入文件系统缓存，而直接落盘。这会影响mysql性能，但是可以提高数据安全性
+ --report-interval=3 每3秒生成一次（读写）报告信息
+ 
+ 
+##iostat 检测是否存在磁盘I/O瓶颈##
+[root@db02 ~]# iostat -xm 3
+Linux 2.6.32-696.18.7.el6.x86_64 (db02)         06/04/2020      _x86_64_        (8 CPU)
+
+avg-cpu:  %user   %nice %system %iowait  %steal   %idle
+           0.64    0.00    0.21    0.89    0.00   98.25
+
+Device:         rrqm/s   wrqm/s     r/s     w/s    rMB/s    wMB/s avgrq-sz avgqu-sz   await r_await w_await  svctm  %util
+vda               0.08    58.89    0.39   17.61     0.02     0.28    34.60     0.09    4.78   15.21    4.55   2.26   4.07
+vdb               0.02    76.54    2.72    7.14     0.22     0.31   110.49     0.10   10.24   10.45   10.16   2.50   2.47
+dm-0              0.00     0.00    3.12  153.05     0.24     0.60    10.95     0.21    1.34   11.57    1.13   0.40   6.28
+dm-1              0.00     0.00    0.09    0.10     0.00     0.00     8.00     0.01   25.33   14.98   34.68   1.29   0.03
+ #若看到%util达到100%则说明磁盘基本满载达到性能上限#
+ 
+##vmstat、sar、mpstat可以查看是否存在CPU瓶颈## 
+##vmstst free 命令可以查看是否存在内存瓶颈##
+###netstat查看是否存在网络I/O瓶颈#
+ 
+
+ 

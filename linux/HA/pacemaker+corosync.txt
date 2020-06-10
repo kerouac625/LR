@@ -1,0 +1,142 @@
+###prepare environment && install packages 三台server上都要作业###
+#server#
+OS:CentOS7.5
+pacemaker01 10.67.51.181
+pacemaker02 10.67.51.182
+pacemaker03 10.67.51.183
+vip: 10.67.51.185
+
+#映射主机文件#
+[root@pacemaker01 ~]# cat /etc/hosts|grep pacemaker
+10.67.51.181 pacemaker01
+10.67.51.182 pacemaker02
+10.67.51.183 pacemaker03
+
+#install packages#
+yum install corosync pacemaker pcs -y
+
+#enable and start service#
+systemctl enable pcsd
+systemctl enable corosync
+systemctl enable pacemaker
+systemctl start pcsd
+
+#create password for hacluster#
+passwd hacluster
+
+
+
+[root@pacemaker01 ~]# pcs resource standards
+lsb
+ocf
+service
+systemd
+[root@pacemaker01 ~]# pcs resource providers
+heartbeat
+openstack
+pacemaker
+
+#list all available resource agents with description#
+[root@pacemaker01 ~]# pcs resource list
+#Print only the available resource without description#
+[root@pacemaker01 ~]# pcs resource agents
+#list the specific available resources#
+[root@pacemaker01 ~]# pcs resource list lvm
+#list more information with the resource agent command describe option #
+[root@pacemaker01 ~]# pcs resource  describe lsb:network
+
+#查看版本#
+pacemakerd --features
+corosync -v
+
+
+###create and configurate cluster 只需在pacemaker01节点上作业###
+#集群用户认证#
+pcs cluster auth pacemaker01 pacemaker02 pacemaker03
+pcs cluster auth -u hacluster -p hacluster corcls1 corcls2 ## the authorization tokens are stored in /var/lib/pcsd/tokens
+#setup cluster#
+pcs cluster setup --start --name nginx_cluster pacemaker01 pacemaker02 pacemaker03
+pcs cluster enable --all
+
+#check the status of corosync#
+pcs status corosync
+#Verify the CoroSync & CIB Configuration#
+cat /etc/corosync/corosync.conf
+#To view the cluster information base use option cib with pcs command#
+pcs cluster cib
+
+#check the cluster status#
+pcs status cluster
+pcs status
+
+#To check the cluster’s Quorum status using the corosync-quorumtool command#
+corosync-quorumtool
+pcs status quorum
+
+#Validate the cluster#
+crm_verify -L -V
+#关掉stonith#
+pcs property set stonith-enabled=false
+#Next re-validate the cluster#
+crm_verify -L -V
+
+#create resource#
+pcs resource create web-vip ocf:heartbeat:IPaddr2 ip=10.67.51.185 cidr_netmask=23 op monitor interval=30s
+pcs resource create webserver1 ocf:heartbeat:nginx  op monitor timeout="5s" interval="5s"
+
+#show resources#
+[root@pacemaker01 ~]# pcs status resources
+ web-vip        (ocf::heartbeat:IPaddr2):       Started pacemaker01
+ webserver1     (ocf::heartbeat:nginx): Started pacemaker02
+[root@pacemaker01 ~]# pcs resource show
+ web-vip        (ocf::heartbeat:IPaddr2):       Started pacemaker01
+ webserver1     (ocf::heartbeat:nginx): Started pacemaker02
+[root@pacemaker01 ~]# pcs resource show web-vip
+ Resource: web-vip (class=ocf provider=heartbeat type=IPaddr2)
+  Attributes: cidr_netmask=23 ip=10.67.51.185
+  Operations: monitor interval=30s (web-vip-monitor-interval-30s)
+              start interval=0s timeout=20s (web-vip-start-interval-0s)
+              stop interval=0s timeout=20s (web-vip-stop-interval-0s)
+
+#设置资源约束#
+ pcs constraint colocation add webserver1 with web-vip INFINITY    ##Colocation捆绑约束 将不同的资源捆绑在一起作为一个逻辑整体放在同一个节点
+ pcs constraint order start web-vip then webserver1    ##order顺序约束 限定了资源之间的启动顺序
+ 
+#重启集群#
+  pcs cluster stop --all
+  pcs cluster start --all
+  
+#再次检查集群，此时资源位于同一节点#
+[root@pacemaker01 ~]# pcs resource show
+ web-vip        (ocf::heartbeat:IPaddr2):       Started pacemaker01
+ webserver1     (ocf::heartbeat:nginx): Started pacemaker01
+ 
+#测试高可用性# 
+  pcs status nodes  ##查看节点状态
+  corosync-cmapctl|grep members   ##查看corosync成员ip
+  pcs status corosync   ##检查corosync成员状态
+  pcs cluster stop  pacemaker01   ##停止pacemaker节点上的集群服务
+ 
+[root@pacemaker02 ~]# pcs status  ##再次检查集群状态
+Cluster name: nginx_cluster
+Stack: corosync
+Current DC: pacemaker02 (version 1.1.20-5.el7_7.2-3c4c782f70) - partition with quorum
+Last updated: Sat Jun  6 10:10:55 2020
+Last change: Fri Jun  5 15:28:34 2020 by root via cibadmin on pacemaker01
+
+3 nodes configured
+2 resources configured
+
+Online: [ pacemaker02 pacemaker03 ]
+OFFLINE: [ pacemaker01 ]
+
+Full list of resources:
+
+ web-vip        (ocf::heartbeat:IPaddr2):       Started pacemaker02
+ webserver1     (ocf::heartbeat:nginx): Started pacemaker02
+
+Daemon Status:
+  corosync: active/enabled
+  pacemaker: active/enabled
+  pcsd: active/enabled
+ ##此时集群资源转移到pacemaker02节点##
