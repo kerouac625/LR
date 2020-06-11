@@ -1,0 +1,25 @@
+##push with git##
+
+create project(floder) on github
+
+#clone git floder on desktop#
+cd Desktop/
+git clone https://github.com/kerouac625/LR.git
+
+#configurate proxy for git #
+git config --global http.proxy http://h7108579:pqhkr99ctw@10.36.6.66
+git config --global https.proxy http://h7108579:pqhkr99ctw@10.36.6.66
+
+#commit and push new file#
+cd LR
+git add.
+git commit -m "add HA,Linux-notes folder Jun 10 2020 "
+git push origin master
+
+#show status#
+git status
+
+#for help#
+git config --help
+
+
