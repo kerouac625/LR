@@ -22,4 +22,13 @@ git status
 #for help#
 git config --help
 
+#set git user/email#
+git config --global user.name [username]
+git config --global user.email [email]
+
+#save password#
+echo "[credential]" >> .git/config
+echo "    helper = store" >> .git/config
+
+
 

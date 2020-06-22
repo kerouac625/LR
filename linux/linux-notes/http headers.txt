@@ -67,32 +67,3 @@ ETag: W/"14067-1591075442251:dtagent10189200420175514fINI"  ##比如一个html�
 
 ##JWT(Json Web Token) & Session Cookies## 
 ##参考文档 https://www.jianshu.com/p/576dbf44b2ae
-
-
-
-
-若有一个web 应用，在到达他之前通过了2次nginx proxy
-
-$remote_addr
-客户端访问web服务器时若不经过代理,$remote_addr为客户端的ip;若经过(多层)理$remote_addr 则代表上一层代理的ip
-
-在第一台nginx中
-proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-
-$proxy_add_x_forwarded_for = $X-Forwarded-For , $remote_addr
-此时的 $X-Forwarded-For为空 即 $proxy_add_x_forwarded_for = $remote_addr即为用户的真实ip
-
-在第二台nginx中
-proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-
-$proxy_add_x_forwarded_for = $X-Forwarded-For , $remote_addr = 用户的真实ip , 第一台nginx的ip
-
-
-
-
-
-
-
-
-
-

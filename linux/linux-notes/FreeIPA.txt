@@ -1,0 +1,56 @@
+How To Configure a FreeIPA Client on CentOS 8/7/6/5 ?
+##reference: https://www.server-world.info/en/##
+
+ipaserver:
+10.67.51.34 ipa.xq.foxconn
+10.67.51.36 ipa3.xq.foxconn
+ipaclient:
+10.67.51.158 temp
+#on CentOS7#
+
+#Add DNS entry for FreeIPA client on FreeIPA server first#
+ipa dnsrecord-add xq.foxconn temp --a-rec 10.67.51.158
+
+#configure FQDN(完全限定域名) for ipa client#
+hostnamectl set-hostname temp.xq.foxconn
+echo "10.67.51.158 temp.xq.foxconn temp" >> /etc/hosts
+
+#install client tools on FreeIPA Client and also change DNS setting to bind FreeIPA Server#
+yum install ipa-client 
+nmcli connection modify ens160 ipv4.dns 10.67.51.34
+nmcli connection down ens160; nmcli connection up ens160
+(also can change the file of /etc/resolv.conf to add DNS)
+
+#set up a FreeIPA Client#
+ipa-client-install --domain=xq.foxconn --realm=XQ.FOXCONN --mkhomedir
+
+
+# Set Default Login Shell on SSSD for AD trust users using FreeIPA #
+$ sudo vim /etc/sssd/sssd.conf
+[domain/xq.foxconn]
+.......
+default_shell = /bin/bash
+override_shell = /bin/bash
+[sssd]
+.......
+ 
+#After making the change, remove sssd cache and restart sssd service#
+sudo rm -rf /var/lib/sss/db/*
+sudo systemctl restart sssd
+
+#Check user on AD#
+[root@ipa ~]# ssh 88888@TJ.FOXCONN@10.67.51.158
+Password:
+Last login: Sat Jun 13 14:08:01 2020 from 10.67.51.164
+[88888@tj.foxconn@temp ~]$ echo $SHELL
+/bin/bash
+
+#set the defaulit ipauser's shell with /bin/bash when create ipauser #
+#this set only take effect on ipauser and not effect on AD user#
+[root@ipa ~]# ipa config-mod --defaultshell=/bin/bash
+  Maximum username length: 32
+  Maximum hostname length: 64
+  Home directory base: /home
+  Default shell: /bin/bash
+
+#CentOS6的FreeIPA配置方法同7#

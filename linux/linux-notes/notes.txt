@@ -1,0 +1,26 @@
+﻿1. an error
+question: 
+ ipauser login freeipa client without home dir
+resolve: 
+ #cheak whether the packages oddjob oddjob-mkhomedir have been installed ,if not,install them #
+ rpm -qa|grep oddjob
+ 
+ #启用用户登录时自建家目录功能#
+ authconfig --enablemkhomedir --update 
+ 
+ #restart service it will create home directory for freeipa user#
+ systemctl restart oddjobd 
+ systemctl restart dbus
+ 
+
+2. centos7.x进入单用户模式修改root密码
+ 开机进入grub菜单栏，选择kernel 输入e进入grub页面进行编辑
+ 找到linux16 开头的一行 在最后面追加 init=/bin/sh; 若是7.0的系统需要删除rhgb与quiet参数,7.0以后的系统不需要删除
+ 根据提示使用 Ctrl+x start
+ mount -o remount,rw /  ##重新挂着/目录获得rw权限
+ password user
+ touch /.autorelabel    ##重置所有selinux标签，使selinux生效
+ exec /sbin/init
+ 
+ 
+ 
