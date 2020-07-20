@@ -38,10 +38,13 @@ pacemaker
 
 #list all available resource agents with description#
 [root@pacemaker01 ~]# pcs resource list
+
 #Print only the available resource without description#
 [root@pacemaker01 ~]# pcs resource agents
+
 #list the specific available resources#
 [root@pacemaker01 ~]# pcs resource list lvm
+
 #list more information with the resource agent command describe option #
 [root@pacemaker01 ~]# pcs resource  describe lsb:network
 
@@ -53,7 +56,7 @@ corosync -v
 ###create and configurate cluster 只需在pacemaker01节点上作业###
 #集群用户认证#
 pcs cluster auth pacemaker01 pacemaker02 pacemaker03
-pcs cluster auth -u hacluster -p hacluster corcls1 corcls2 ## the authorization tokens are stored in /var/lib/pcsd/tokens
+pcs cluster auth -u hacluster -p hacluster pacemaker01 pacemaker02 pacemaker03 ## the authorization tokens are stored in /var/lib/pcsd/tokens
 #setup cluster#
 pcs cluster setup --start --name nginx_cluster pacemaker01 pacemaker02 pacemaker03
 pcs cluster enable --all
