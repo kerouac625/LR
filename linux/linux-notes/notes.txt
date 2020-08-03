@@ -250,6 +250,9 @@ cf766
 tar -zcvf test.tar.gz test  #-c 建立压缩档案
 tar -zxvf file.tar.gz  #-x 解压缩
 
+解压 tar -zxvf 文件名.tar.gz
+压缩 tar -zcvf 目标文件名.tar.gz 源文件
+
 #############sed###########
 #在第N行末尾(a)面追加一行内容#
 dsh -f 2.txt -c "sed -i 'N;4a- /var/log/history/root/.sh_history*' /etc/filebeat/filebeat.yml"  ##在第4行下面追加内容- /var/log/history/root/.sh_history*
