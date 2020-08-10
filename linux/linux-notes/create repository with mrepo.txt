@@ -1,0 +1,147 @@
+docker pull tfhartmann/mrepo
+
+[root@repo-centos web]# cat mrepo-centos7.sh
+docker run --name mrepo7 -d \
+ -v /root/web/repos-c7.conf:/etc/mrepo.conf.d/repos.conf \
+ -v /mrepo/centos7:/mrepo \
+ -e http_proxy=10.67.9.200:3128 \
+ -e https_proxy=10.67.9.200:3128 \
+ -e WEB=True \
+ -e UPDATE=False \
+ -l "SERVICE_NAME=repo7" \
+ -l "SERVICE_TAGS=http" \
+ -p 8080:80 tfhartmann/mrepo
+
+ 
+[root@repo-centos web]# cat repos-c7.conf
+[centos7]
+name = CentOS $release ($arch)
+release = 7
+arch = x86_64
+os = http://mirrors.aliyun.com/centos/$release/os/$arch/
+centosplus = http://mirrors.aliyun.com/centos/$release/centosplus/$arch/
+updates = http://mirrors.aliyun.com/centos/$release/updates/$arch/
+extras = http://mirrors.aliyun.com/centos/$release/extras/$arch/
+epel = http://mirrors.aliyun.com/epel/$release/$arch/
+docker-ce = https://mirrors.aliyun.com/docker-ce/linux/centos/$release/$arch/stable/
+gluster-4.1 = https://mirrors.aliyun.com/centos/$release/storage/$arch/gluster-4.1/
+gluster-3.12 = https://mirrors.aliyun.com/centos/$release/storage/$arch/gluster-3.12/
+zabbix-3.4 = https://mirrors.aliyun.com/zabbix/zabbix/3.4/rhel/$release/$arch/
+zabbix-4.2 = https://mirrors.aliyun.com/zabbix/zabbix/4.2/rhel/$release/$arch/
+zabbix-4.4 = https://mirrors.aliyun.com/zabbix/zabbix/4.4/rhel/$release/$arch/
+mariadb-10.3 = http://yum.mariadb.org/10.3/centos7-amd64/
+
+
+[root@repo-centos web]# cat repo-frontend.sh
+docker run --name repo-frontend -d \
+  -v /root/web/default.conf:/etc/nginx/conf.d/default.conf \
+  -v /mrepo/html:/usr/share/nginx/html \
+ -l "SERVICE_NAME=repo" \
+ -l "SERVICE_TAGS=http" \
+ -e TZ='Asia/Shanghai' -p 80:80 nginx:latest
+
+ 
+ 
+[root@repo-centos web]# cat default.conf
+server {
+    listen       80;
+    server_name  localhost;
+
+    location / {
+        root   /usr/share/nginx/html;
+        index  index.html index.htm;
+        autoindex on;
+        autoindex_exact_size off;
+        autoindex_localtime on;
+    }
+
+    error_page   500 502 503 504  /50x.html;
+    location = /50x.html {
+        root   /usr/share/nginx/html;
+    }
+
+     proxy_set_header X-Real-IP  $remote_addr;
+     location /centos8-x86_64/ {
+         proxy_pass   http://10.67.51.164:8084/centos8-x86_64/;
+     }
+     location /centos7-x86_64/ {
+         proxy_pass   http://10.67.51.164:8080/centos7-x86_64/;
+     }
+     location /centos6-x86_64/ {
+         proxy_pass   http://10.67.51.164:8081/centos6-x86_64/;
+     }
+     location /centos5-x86_64/ {
+         proxy_pass   http://10.67.51.164:8082/centos5-x86_64/;
+     }
+     location /ubuntu/ {
+         proxy_pass   http://10.67.51.164:8083/ubuntu/;
+     }
+     location /mos-repos/ {
+         proxy_pass   http://10.67.51.164:8083/mos-repos/;
+     }
+     location /icons/ {
+         proxy_pass   http://10.67.51.164:8082/icons/;
+     }
+     location /zabbix4.4/ {
+         proxy_pass   http://10.67.51.164:8083/zabbix4.4/;
+     }
+
+}
+
+
+
+#########How to Setup Local HTTP Yum Repository on CentOS 7##########
+#method 1: with reposync && createrepo#
+Step 1: Install Nginx Web Server#
+
+Step 2: Create Yum Local Repository
+
+1.install the required packages##
+ yum install createrepo  yum-utils
+
+2.Next, create the necessary directories (yum repositories) that will store packages and any related information.##
+ mkdir -p /var/www/html/repos/{base,centosplus,extras,updates}
+
+3.Then use the reposync tool to synchronize CentOS YUM repositories to the local directories as shown.##
+ reposync -g -l -d -m --repoid=base --newest-only --download-metadata --download_path=/var/www/html/repos/
+ reposync -g -l -d -m --repoid=centosplus --newest-only --download-metadata --download_path=/var/www/html/repos/
+ reposync -g -l -d -m --repoid=extras --newest-only --download-metadata --download_path=/var/www/html/repos/
+ reposync -g -l -d -m --repoid=updates --newest-only --download-metadata --download_path=/var/www/html/repos/
+
+4.Next, check the contents of your local directories to ensure that all the packages have been synchronized locally.##
+ ls -l /var/www/html/repos/base/
+ ls -l /var/www/html/repos/base/Packages/
+ ls -l /var/www/html/repos/centosplus/
+ ls -l /var/www/html/repos/centosplus/Packages/
+ ls -l /var/www/html/repos/extras/
+ ls -l /var/www/html/repos/extras/Packages/
+ ls -l /var/www/html/repos/updates/
+ ls -l /var/www/html/repos/updates/Packages/
+ 
+5.Now create a new repodata for the local repositories by running the following commands, where the flag -g is used to update the package group information using the specified .xml file.##
+ createrepo -g comps.xml /var/www/html/repos/base/  
+ createrepo -g comps.xml /var/www/html/repos/centosplus/	
+ createrepo -g comps.xml /var/www/html/repos/extras/  
+ createrepo -g comps.xml /var/www/html/repos/updates/ 
+
+6.To enable viewing of repositories and packages in them, via a web browser, create a Nginx server block which points to the root of your repositories as shown.
+  vi /etc/nginx/conf.d/repos.conf
+  server {
+        listen       80 default_server;
+        listen       [::]:80 default_server;
+        server_name  _;
+        root         /var/www/html/repos;
+        autoindex on;
+
+        location / {
+        }
+  }	
+
+  
+7.Then restart your Nginx server and view the repositories from a web browser using the following URL
+http://10.67.50.197/centosplus/repodata/
+ 
+
+ 
+
+
